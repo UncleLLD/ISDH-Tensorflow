@@ -1,32 +1,41 @@
 import tensorflow as tf
 from PIL import Image
-import scipy.io as sio
 import numpy as np
+import json
 
-#img_dir = './data/flickr/images/'
-img_dir = '../flickr-25k/im256/'
-label_dir = './data/flickr/trainlabel.mat'
+img_dir = './data/myself/train_img/'
 image_size = 227
 
-f1 = open('./data/flickr/train.txt')
+# img
+f1 = open('./data/myself/train_img_196.txt')
 imagelists = f1.readlines()
 l = len(imagelists)
 
-mean_value = np.array([123, 117, 104]).reshape((1,3))
-data = sio.loadmat(label_dir)
+# label
+pid_label_file = './data/myself/feature_label.json'
+with open(pid_label_file) as fl:
+    line = fl.readline().strip('\n')
+    pid_label = json.loads(line)
 
-train_label = data['trainlabel']
-writer = tf.python_io.TFRecordWriter("train-flickr.tfrecords")
+train_label = []
+for img_name in imagelists:
+    img_pid = img_name.split('_')[0]
+    img_name_label = pid_label[img_pid]
+    train_label.append(img_name_label)
+
+train_label = np.array(train_label, dtype='uint8')
+
+writer = tf.python_io.TFRecordWriter("train-myself.tfrecords")
 
 for i in np.arange(l):
     img_name = imagelists[i].strip('\n\r')
     img_path = img_dir + img_name
     img = Image.open(img_path)
     img = img.resize((image_size, image_size))
-    new_im = img-mean_value
-    new_im =new_im.astype(np.int16)
+    new_im = np.array(img)
+    new_im = new_im / 255.0
+    new_im = new_im.astype(np.int16)
     img_raw = new_im.tobytes()
-    
     feature = train_label[i,:]
     print(img_name)
     example = tf.train.Example(features=tf.train.Features(feature={
